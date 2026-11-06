@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Previsão do Tempo</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <main class="card">
+    <h1>Previsão do Tempo</h1>
+ 
+    <form id="form-cidade" autocomplete="off">
+      <input
+        type="text"
+        id="cidade"
+        name="cidade"
+        placeholder="Digite o nome de uma cidade"
+        required
+      >
+      <button type="submit">Buscar</button>
+    </form>
+ 
+    <section id="resultado" class="resultado" aria-live="polite" hidden>
+      <h2 id="nome-cidade"></h2>
+      <p class="local" id="local-detalhe"></p>
+      <p class="temperatura"><span id="temperatura"></span></p>
+    </section>
+ 
+    <p id="mensagem" class="mensagem" aria-live="polite"></p>
+  </main>
+ 
+  <script src="assets/js/api.js"></script>
+</body>
+</html>
