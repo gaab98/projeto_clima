@@ -4,12 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Previsão do Tempo</title>
+
+  <!-- Biblioteca Weather Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/weather-icons/2.0.10/css/weather-icons.min.css">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
-<body>
+<body data-tema="dia">
   <main class="card">
     <h1>Previsão do Tempo</h1>
- 
+
     <form id="form-cidade" autocomplete="off">
       <input
         type="text"
@@ -20,16 +23,19 @@
       >
       <button type="submit">Buscar</button>
     </form>
- 
+
     <section id="resultado" class="resultado" aria-live="polite" hidden>
+      <i id="icone-clima" class="wi wi-na icone-clima" aria-hidden="true"></i>
       <h2 id="nome-cidade"></h2>
       <p class="local" id="local-detalhe"></p>
-      <p class="temperatura"><span id="temperatura"></span></p>
+      <p class="temperatura" id="temperatura"></p>
+      <p class="descricao" id="descricao-clima"></p>
+      <p class="data-hora" id="data-hora"></p>
     </section>
- 
+
     <p id="mensagem" class="mensagem" aria-live="polite"></p>
   </main>
- 
+
   <script src="assets/js/api.js"></script>
 </body>
 </html>

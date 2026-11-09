@@ -3,7 +3,33 @@
   margin: 0;
   padding: 0;
 }
- 
+
+/* Variáveis de tema: dia (claro) e noite (escuro) */
+:root,
+body[data-tema="dia"] {
+  --fundo: linear-gradient(135deg, #4facfe 0%, #00c6fb 100%);
+  --card: #ffffff;
+  --texto: #1b2a3a;
+  --texto-suave: #5f7488;
+  --destaque: #1e88e5;
+  --destaque-hover: #1565c0;
+  --borda: #d5e3f0;
+  --input-fundo: #ffffff;
+  --sombra: rgba(0, 0, 0, 0.18);
+}
+
+body[data-tema="noite"] {
+  --fundo: linear-gradient(135deg, #0b1026 0%, #1b2a55 100%);
+  --card: #1c2340;
+  --texto: #e8edf7;
+  --texto-suave: #9fb0cc;
+  --destaque: #7aa7ff;
+  --destaque-hover: #5b8ef0;
+  --borda: #34406a;
+  --input-fundo: #141a33;
+  --sombra: rgba(0, 0, 0, 0.5);
+}
+
 body {
   min-height: 100vh;
   display: flex;
@@ -11,96 +37,129 @@ body {
   justify-content: center;
   padding: 16px;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: linear-gradient(135deg, #4facfe 0%, #00c6fb 100%);
-  color: #1b2a3a;
+  background: var(--fundo);
+  color: var(--texto);
+  transition: background 0.4s, color 0.4s;
 }
- 
+
 .card {
   width: 100%;
   max-width: 420px;
   padding: 32px 28px;
-  background: #ffffff;
+  background: var(--card);
   border-radius: 20px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 16px 40px var(--sombra);
   text-align: center;
+  transition: background 0.4s;
 }
- 
+
 h1 {
   font-size: 1.6rem;
   margin-bottom: 20px;
 }
- 
+
 form {
   display: flex;
   gap: 8px;
 }
- 
+
 input {
   flex: 1;
+  min-width: 0;
   padding: 12px 14px;
   font-size: 1rem;
-  border: 2px solid #d5e3f0;
+  color: var(--texto);
+  background: var(--input-fundo);
+  border: 2px solid var(--borda);
   border-radius: 10px;
   outline: none;
   transition: border-color 0.2s;
 }
- 
+
 input:focus {
-  border-color: #4facfe;
+  border-color: var(--destaque);
 }
- 
+
 button {
   padding: 12px 18px;
   font-size: 1rem;
   font-weight: 600;
   color: #ffffff;
-  background: #1e88e5;
+  background: var(--destaque);
   border: none;
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.2s;
 }
- 
-button:hover:not(:disabled) {
-  background: #1565c0;
+
+body[data-tema="noite"] button {
+  color: #0b1026;
 }
- 
+
+button:hover:not(:disabled) {
+  background: var(--destaque-hover);
+}
+
 button:disabled {
   opacity: 0.6;
   cursor: wait;
 }
- 
+
 .resultado {
   margin-top: 28px;
 }
- 
+
+.icone-clima {
+  font-size: 4.5rem;
+  line-height: 1;
+  color: var(--destaque);
+}
+
 .resultado h2 {
+  margin-top: 12px;
   font-size: 1.4rem;
 }
- 
+
 .local {
   margin-top: 4px;
-  color: #5f7488;
+  color: var(--texto-suave);
   font-size: 0.95rem;
 }
- 
+
 .temperatura {
   margin-top: 12px;
   font-size: 4rem;
   font-weight: 700;
-  color: #1e88e5;
+  color: var(--destaque);
 }
- 
+
+.descricao {
+  margin-top: 4px;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.data-hora {
+  margin-top: 16px;
+  color: var(--texto-suave);
+  font-size: 0.9rem;
+  text-transform: capitalize;
+}
+
 .mensagem {
   margin-top: 20px;
   min-height: 1.2em;
-  color: #5f7488;
+  color: var(--texto-suave);
 }
- 
+
 .mensagem.erro {
-  color: #c62828;
+  color: #e53935;
 }
- 
+
+body[data-tema="noite"] .mensagem.erro {
+  color: #ff8a80;
+}
+
 [hidden] {
   display: none !important;
 }
