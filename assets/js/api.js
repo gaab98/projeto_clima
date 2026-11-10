@@ -2,19 +2,6 @@ const GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
 const TIMEOUT_MS = 10000;
 
-// Elementos da página
-const form = document.getElementById("form-cidade");
-const inputCidade = document.getElementById("cidade");
-const botao = form.querySelector("button");
-const secaoResultado = document.getElementById("resultado");
-const elIcone = document.getElementById("icone-clima");
-const elNomeCidade = document.getElementById("nome-cidade");
-const elLocal = document.getElementById("local-detalhe");
-const elTemperatura = document.getElementById("temperatura");
-const elDescricao = document.getElementById("descricao-clima");
-const elDataHora = document.getElementById("data-hora");
-const elMensagem = document.getElementById("mensagem");
-
 // Códigos WMO (weather_code) -> descrição em português e ícones (Weather Icons)
 const CLIMA = {
   0:  { descricao: "Céu limpo",                    dia: "wi-day-sunny",         noite: "wi-night-clear" },
@@ -50,14 +37,16 @@ const CLIMA = {
 const CLIMA_DESCONHECIDO = { descricao: "Condição desconhecida", dia: "wi-na", noite: "wi-na" };
 
 // Erro com mensagem amigável para exibir ao usuário
+// tipo: "cidade" | "rede" | "timeout" | "limite" | "api"
 class ErroApp extends Error {
   constructor(mensagem, tipo) {
     super(mensagem);
-    this.tipo = tipo; // "cidade" | "rede" | "timeout" | "api"
+    this.name = "ErroApp";
+    this.tipo = tipo;
   }
 }
 
-// Faz a requisição e trata falhas de rede, timeout e erros da API
+// Faz a requisição e trata falhas de rede, timeout, limite de requisições e erros da API
 async function buscarJSON(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -66,12 +55,19 @@ async function buscarJSON(url) {
   try {
     resposta = await fetch(url, { signal: controller.signal });
   } catch (erro) {
-    if (erro.name === "AbortError") {
+    if (erro && erro.name === "AbortError") {
       throw new ErroApp("A consulta demorou demais para responder. Tente novamente.", "timeout");
     }
     throw new ErroApp("Erro de rede. Verifique sua conexão com a internet e tente novamente.", "rede");
   } finally {
     clearTimeout(timer);
+  }
+
+  if (resposta.status === 429) {
+    throw new ErroApp(
+      "Limite de requisições da API excedido. Aguarde um pouco e tente novamente.",
+      "limite"
+    );
   }
 
   if (!resposta.ok) {
@@ -90,9 +86,15 @@ async function buscarJSON(url) {
 
 // Valida o nome digitado antes de consultar a API
 function validarCidade(cidade) {
-  if (cidade.length < 2 || !/\p{L}/u.test(cidade)) {
+  const texto = typeof cidade === "string" ? cidade.trim() : "";
+
+  if (texto.length === 0) {
+    throw new ErroApp("Digite o nome de uma cidade.", "cidade");
+  }
+  if (texto.length < 2 || !/\p{L}/u.test(texto)) {
     throw new ErroApp("Nome de cidade inválido. Digite pelo menos 2 letras.", "cidade");
   }
+  return texto;
 }
 
 // API de Geocodificação: nome da cidade -> latitude/longitude
@@ -100,12 +102,17 @@ async function buscarCoordenadas(cidade) {
   const url = `${GEOCODING_URL}?name=${encodeURIComponent(cidade)}&count=1&language=pt&format=json`;
   const dados = await buscarJSON(url);
 
-  if (!dados.results || dados.results.length === 0) {
+  if (!dados || !Array.isArray(dados.results) || dados.results.length === 0) {
     throw new ErroApp(`Cidade "${cidade}" não encontrada. Verifique o nome e tente novamente.`, "cidade");
   }
 
   const { name, admin1, country, latitude, longitude } = dados.results[0];
-  return { nome: name, estado: admin1, pais: country, latitude, longitude };
+
+  if (typeof latitude !== "number" || typeof longitude !== "number") {
+    throw new ErroApp("A API retornou coordenadas inválidas. Tente novamente.", "api");
+  }
+
+  return { nome: name || cidade, estado: admin1, pais: country, latitude, longitude };
 }
 
 // API de previsão: latitude/longitude -> temperatura, código do clima e dia/noite
@@ -115,7 +122,7 @@ async function buscarClima(latitude, longitude) {
     `&current=temperature_2m,weather_code,is_day&timezone=auto`;
   const dados = await buscarJSON(url);
 
-  if (!dados.current || typeof dados.current.temperature_2m !== "number") {
+  if (!dados || !dados.current || typeof dados.current.temperature_2m !== "number") {
     throw new ErroApp("A API não retornou os dados do clima. Tente novamente.", "api");
   }
 
@@ -124,6 +131,19 @@ async function buscarClima(latitude, longitude) {
     codigo: dados.current.weather_code,
     ehDia: dados.current.is_day === 1,
   };
+}
+
+// Fluxo completo: valida -> geocodifica -> consulta o clima
+async function buscarPrevisao(entrada) {
+  const cidade = validarCidade(entrada);
+  const local = await buscarCoordenadas(cidade);
+  const clima = await buscarClima(local.latitude, local.longitude);
+  return { local, clima };
+}
+
+// Descrição e ícones para um código WMO (com fallback para códigos desconhecidos)
+function obterInfoClima(codigo) {
+  return CLIMA[codigo] || CLIMA_DESCONHECIDO;
 }
 
 // Data e hora completas da consulta, ex.: "segunda-feira, 9 de novembro de 2026 às 15:53"
@@ -138,61 +158,89 @@ function formatarDataHora(data) {
   return `${dia} às ${hora}`;
 }
 
-// Fundo escuro à noite e claro de dia
-function aplicarTema(ehDia) {
-  document.body.dataset.tema = ehDia ? "dia" : "noite";
-}
+// ---------------------------------------------------------------------------
+// Interface (só roda no navegador; nos testes com Jest em ambiente "node" é ignorada)
+// ---------------------------------------------------------------------------
+function iniciarInterface() {
+  const form = document.getElementById("form-cidade");
+  const inputCidade = document.getElementById("cidade");
+  const botao = form.querySelector("button");
+  const secaoResultado = document.getElementById("resultado");
+  const elIcone = document.getElementById("icone-clima");
+  const elNomeCidade = document.getElementById("nome-cidade");
+  const elLocal = document.getElementById("local-detalhe");
+  const elTemperatura = document.getElementById("temperatura");
+  const elDescricao = document.getElementById("descricao-clima");
+  const elDataHora = document.getElementById("data-hora");
+  const elMensagem = document.getElementById("mensagem");
 
-// Tema inicial pelo horário local do usuário (antes de qualquer consulta)
-function aplicarTemaPeloRelogio() {
+  // Fundo escuro à noite e claro de dia
+  function aplicarTema(ehDia) {
+    document.body.dataset.tema = ehDia ? "dia" : "noite";
+  }
+
+  function mostrarMensagem(texto, ehErro = false) {
+    elMensagem.textContent = texto;
+    elMensagem.classList.toggle("erro", ehErro);
+  }
+
+  function exibirResultado(local, clima, consultadoEm) {
+    const info = obterInfoClima(clima.codigo);
+
+    elIcone.className = `wi ${clima.ehDia ? info.dia : info.noite} icone-clima`;
+    elNomeCidade.textContent = local.nome;
+    elLocal.textContent = [local.estado, local.pais].filter(Boolean).join(", ");
+    elTemperatura.textContent = `${Math.round(clima.temperatura)}°C`;
+    elDescricao.textContent = info.descricao;
+    elDataHora.textContent = formatarDataHora(consultadoEm);
+
+    aplicarTema(clima.ehDia);
+    secaoResultado.hidden = false;
+  }
+
+  form.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+
+    botao.disabled = true;
+    secaoResultado.hidden = true;
+    mostrarMensagem("Buscando...");
+
+    try {
+      const { local, clima } = await buscarPrevisao(inputCidade.value);
+      exibirResultado(local, clima, new Date());
+      mostrarMensagem("");
+    } catch (erro) {
+      if (erro instanceof ErroApp) {
+        mostrarMensagem(erro.message, true);
+      } else {
+        console.error(erro);
+        mostrarMensagem("Ocorreu um erro inesperado. Tente novamente.", true);
+      }
+    } finally {
+      botao.disabled = false;
+    }
+  });
+
+  // Tema inicial pelo horário local do usuário (antes de qualquer consulta)
   const hora = new Date().getHours();
   aplicarTema(hora >= 6 && hora < 18);
 }
 
-function mostrarMensagem(texto, ehErro = false) {
-  elMensagem.textContent = texto;
-  elMensagem.classList.toggle("erro", ehErro);
+if (typeof document !== "undefined") {
+  iniciarInterface();
 }
 
-function exibirResultado(local, clima, consultadoEm) {
-  const info = CLIMA[clima.codigo] || CLIMA_DESCONHECIDO;
-
-  elIcone.className = `wi ${clima.ehDia ? info.dia : info.noite}`;
-  elNomeCidade.textContent = local.nome;
-  elLocal.textContent = [local.estado, local.pais].filter(Boolean).join(", ");
-  elTemperatura.textContent = `${Math.round(clima.temperatura)}°C`;
-  elDescricao.textContent = info.descricao;
-  elDataHora.textContent = formatarDataHora(consultadoEm);
-
-  aplicarTema(clima.ehDia);
-  secaoResultado.hidden = false;
+// Exportação para os testes (Jest/Node). No navegador "module" não existe e este bloco é ignorado.
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    TIMEOUT_MS,
+    ErroApp,
+    buscarJSON,
+    validarCidade,
+    buscarCoordenadas,
+    buscarClima,
+    buscarPrevisao,
+    obterInfoClima,
+    formatarDataHora,
+  };
 }
-
-form.addEventListener("submit", async (evento) => {
-  evento.preventDefault();
-
-  const cidade = inputCidade.value.trim();
-
-  botao.disabled = true;
-  secaoResultado.hidden = true;
-  mostrarMensagem("Buscando...");
-
-  try {
-    validarCidade(cidade);
-    const local = await buscarCoordenadas(cidade);
-    const clima = await buscarClima(local.latitude, local.longitude);
-    exibirResultado(local, clima, new Date());
-    mostrarMensagem("");
-  } catch (erro) {
-    if (erro instanceof ErroApp) {
-      mostrarMensagem(erro.message, true);
-    } else {
-      console.error(erro);
-      mostrarMensagem("Ocorreu um erro inesperado. Tente novamente.", true);
-    }
-  } finally {
-    botao.disabled = false;
-  }
-});
-
-aplicarTemaPeloRelogio();
