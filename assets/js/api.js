@@ -1,6 +1,21 @@
 const GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
+
 const TIMEOUT_MS = 10000;
+const TAMANHO_MINIMO_CIDADE = 2;
+const HORA_AMANHECER = 6;
+const HORA_ANOITECER = 18;
+const DIA = 1; // valor de "is_day" retornado pela API quando é dia
+
+// Tipos de erro tratados pelo app (evita strings digitadas à mão)
+const TIPO_ERRO = Object.freeze({
+  VALIDACAO: "validacao",         // entrada do usuário inválida
+  NAO_ENCONTRADA: "nao_encontrada", // cidade inexistente
+  REDE: "rede",
+  TIMEOUT: "timeout",
+  LIMITE: "limite",               // HTTP 429
+  API: "api",                     // erro HTTP ou resposta fora do formato esperado
+});
 
 // Códigos WMO (weather_code) -> descrição em português e ícones (Weather Icons)
 const CLIMA = {
@@ -36,51 +51,68 @@ const CLIMA = {
 
 const CLIMA_DESCONHECIDO = { descricao: "Condição desconhecida", dia: "wi-na", noite: "wi-na" };
 
-// Erro com mensagem amigável para exibir ao usuário
-// tipo: "cidade" | "rede" | "timeout" | "limite" | "api"
+// Erro com mensagem amigável para o usuário; `opcoes.cause` guarda o erro original
 class ErroApp extends Error {
-  constructor(mensagem, tipo) {
-    super(mensagem);
+  constructor(mensagem, tipo, opcoes) {
+    super(mensagem, opcoes);
     this.name = "ErroApp";
     this.tipo = tipo;
   }
 }
 
-// Faz a requisição e trata falhas de rede, timeout, limite de requisições e erros da API
-async function buscarJSON(url) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+// Monta uma URL com os parâmetros já codificados
+function montarURL(base, parametros) {
+  const url = new URL(base);
+  url.search = new URLSearchParams(parametros).toString();
+  return url;
+}
 
-  let resposta;
-  try {
-    resposta = await fetch(url, { signal: controller.signal });
-  } catch (erro) {
-    if (erro && erro.name === "AbortError") {
-      throw new ErroApp("A consulta demorou demais para responder. Tente novamente.", "timeout");
-    }
-    throw new ErroApp("Erro de rede. Verifique sua conexão com a internet e tente novamente.", "rede");
-  } finally {
-    clearTimeout(timer);
-  }
-
+// Converte respostas HTTP de erro em ErroApp
+function verificarStatus(resposta) {
   if (resposta.status === 429) {
     throw new ErroApp(
       "Limite de requisições da API excedido. Aguarde um pouco e tente novamente.",
-      "limite"
+      TIPO_ERRO.LIMITE
     );
   }
-
   if (!resposta.ok) {
     throw new ErroApp(
       `O serviço de clima está com problemas (erro ${resposta.status}). Tente novamente em instantes.`,
-      "api"
+      TIPO_ERRO.API
     );
   }
+}
+
+// Único ponto que traduz qualquer falha (fetch, abort, JSON) em ErroApp
+function traduzirErro(erro) {
+  if (erro instanceof ErroApp) return erro;
+
+  if (erro?.name === "AbortError") {
+    return new ErroApp("A consulta demorou demais para responder. Tente novamente.", TIPO_ERRO.TIMEOUT, { cause: erro });
+  }
+  if (erro instanceof SyntaxError) {
+    return new ErroApp("A API retornou uma resposta inválida. Tente novamente.", TIPO_ERRO.API, { cause: erro });
+  }
+  return new ErroApp(
+    "Erro de rede. Verifique sua conexão com a internet e tente novamente.",
+    TIPO_ERRO.REDE,
+    { cause: erro }
+  );
+}
+
+// Requisição GET com timeout que cobre a resposta inteira (cabeçalhos + corpo)
+async function buscarJSON(url, timeoutMs = TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const resposta = await fetch(url, { signal: controller.signal });
+    verificarStatus(resposta);
     return await resposta.json();
-  } catch {
-    throw new ErroApp("A API retornou uma resposta inválida. Tente novamente.", "api");
+  } catch (erro) {
+    throw traduzirErro(erro);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -89,27 +121,33 @@ function validarCidade(cidade) {
   const texto = typeof cidade === "string" ? cidade.trim() : "";
 
   if (texto.length === 0) {
-    throw new ErroApp("Digite o nome de uma cidade.", "cidade");
+    throw new ErroApp("Digite o nome de uma cidade.", TIPO_ERRO.VALIDACAO);
   }
-  if (texto.length < 2 || !/\p{L}/u.test(texto)) {
-    throw new ErroApp("Nome de cidade inválido. Digite pelo menos 2 letras.", "cidade");
+  if (texto.length < TAMANHO_MINIMO_CIDADE || !/\p{L}/u.test(texto)) {
+    throw new ErroApp(
+      `Nome de cidade inválido. Digite pelo menos ${TAMANHO_MINIMO_CIDADE} letras.`,
+      TIPO_ERRO.VALIDACAO
+    );
   }
   return texto;
 }
 
 // API de Geocodificação: nome da cidade -> latitude/longitude
 async function buscarCoordenadas(cidade) {
-  const url = `${GEOCODING_URL}?name=${encodeURIComponent(cidade)}&count=1&language=pt&format=json`;
+  const url = montarURL(GEOCODING_URL, { name: cidade, count: 1, language: "pt", format: "json" });
   const dados = await buscarJSON(url);
 
-  if (!dados || !Array.isArray(dados.results) || dados.results.length === 0) {
-    throw new ErroApp(`Cidade "${cidade}" não encontrada. Verifique o nome e tente novamente.`, "cidade");
+  if (!Array.isArray(dados?.results) || dados.results.length === 0) {
+    throw new ErroApp(
+      `Cidade "${cidade}" não encontrada. Verifique o nome e tente novamente.`,
+      TIPO_ERRO.NAO_ENCONTRADA
+    );
   }
 
   const { name, admin1, country, latitude, longitude } = dados.results[0];
 
   if (typeof latitude !== "number" || typeof longitude !== "number") {
-    throw new ErroApp("A API retornou coordenadas inválidas. Tente novamente.", "api");
+    throw new ErroApp("A API retornou coordenadas inválidas. Tente novamente.", TIPO_ERRO.API);
   }
 
   return { nome: name || cidade, estado: admin1, pais: country, latitude, longitude };
@@ -117,23 +155,49 @@ async function buscarCoordenadas(cidade) {
 
 // API de previsão: latitude/longitude -> temperatura, código do clima e dia/noite
 async function buscarClima(latitude, longitude) {
-  const url =
-    `${FORECAST_URL}?latitude=${latitude}&longitude=${longitude}` +
-    `&current=temperature_2m,weather_code,is_day&timezone=auto`;
+  const url = montarURL(FORECAST_URL, {
+    latitude,
+    longitude,
+    current: "temperature_2m,weather_code,is_day",
+    timezone: "auto",
+  });
   const dados = await buscarJSON(url);
 
-  if (!dados || !dados.current || typeof dados.current.temperature_2m !== "number") {
-    throw new ErroApp("A API não retornou os dados do clima. Tente novamente.", "api");
+  if (typeof dados?.current?.temperature_2m !== "number") {
+    throw new ErroApp("A API não retornou os dados do clima. Tente novamente.", TIPO_ERRO.API);
   }
 
   return {
     temperatura: dados.current.temperature_2m,
     codigo: dados.current.weather_code,
-    ehDia: dados.current.is_day === 1,
+    ehDia: dados.current.is_day === DIA,
   };
 }
 
-// Fluxo completo: valida -> geocodifica -> consulta o clima
+/**
+ * Fluxo completo: valida o nome, geocodifica (cidade -> latitude/longitude)
+ * e consulta o clima atual.
+ *
+ * @async
+ * @param {string} entrada - Nome da cidade digitado pelo usuário.
+ * @returns {Promise<{
+ *   local: {nome: string, estado?: string, pais?: string, latitude: number, longitude: number},
+ *   clima: {temperatura: number, codigo: number, ehDia: boolean}
+ * }>} Local encontrado e condições atuais: `temperatura` em °C, `codigo` é o
+ *   weather_code WMO e `ehDia` indica se é dia no local.
+ * @throws {ErroApp} `TIPO_ERRO.VALIDACAO` se o nome for vazio ou inválido (a API não é chamada).
+ * @throws {ErroApp} `TIPO_ERRO.NAO_ENCONTRADA` se a cidade não existir.
+ * @throws {ErroApp} `TIPO_ERRO.TIMEOUT`, `REDE`, `LIMITE` ou `API` em falhas nas requisições.
+ *
+ * @example
+ * try {
+ *   const { local, clima } = await buscarPrevisao("São Paulo");
+ *   console.log(`${local.nome}: ${clima.temperatura}°C`);
+ * } catch (erro) {
+ *   if (erro instanceof ErroApp) console.warn(erro.tipo, erro.message);
+ *   else throw erro;
+ * }
+ */
 async function buscarPrevisao(entrada) {
   const cidade = validarCidade(entrada);
   const local = await buscarCoordenadas(cidade);
@@ -146,7 +210,7 @@ function obterInfoClima(codigo) {
   return CLIMA[codigo] || CLIMA_DESCONHECIDO;
 }
 
-// Data e hora completas da consulta, ex.: "segunda-feira, 9 de novembro de 2026 às 15:53"
+// Data e hora completas da consulta
 function formatarDataHora(data) {
   const dia = data.toLocaleDateString("pt-BR", {
     weekday: "long",
@@ -158,9 +222,8 @@ function formatarDataHora(data) {
   return `${dia} às ${hora}`;
 }
 
-// ---------------------------------------------------------------------------
+
 // Interface (só roda no navegador; nos testes com Jest em ambiente "node" é ignorada)
-// ---------------------------------------------------------------------------
 function iniciarInterface() {
   const form = document.getElementById("form-cidade");
   const inputCidade = document.getElementById("cidade");
@@ -223,7 +286,7 @@ function iniciarInterface() {
 
   // Tema inicial pelo horário local do usuário (antes de qualquer consulta)
   const hora = new Date().getHours();
-  aplicarTema(hora >= 6 && hora < 18);
+  aplicarTema(hora >= HORA_AMANHECER && hora < HORA_ANOITECER);
 }
 
 if (typeof document !== "undefined") {
@@ -234,6 +297,7 @@ if (typeof document !== "undefined") {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TIMEOUT_MS,
+    TIPO_ERRO,
     ErroApp,
     buscarJSON,
     validarCidade,
