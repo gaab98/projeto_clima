@@ -5,35 +5,93 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Previsão do Tempo</title>
 
+  <!-- Fonte Bricolage Grotesque -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap">
+
   <!-- Biblioteca Weather Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/weather-icons/2.0.10/css/weather-icons.min.css">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body data-tema="dia">
-  <main class="card">
-    <h1>Previsão do Tempo</h1>
+  <main class="app">
+    <h1 class="topo"><i class="wi wi-day-cloudy" aria-hidden="true"></i>Previsão do Tempo</h1>
 
-    <form id="form-cidade" autocomplete="off">
-      <input
-        type="text"
-        id="cidade"
-        name="cidade"
-        placeholder="Digite o nome de uma cidade"
-        required
-      >
+    <form id="form-cidade" class="busca" autocomplete="off" role="search">
+      <label class="sr-only" for="cidade">Cidade</label>
+      <div class="campo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m20 20-3.5-3.5"></path>
+        </svg>
+        <input
+          type="text"
+          id="cidade"
+          name="cidade"
+          placeholder="Digite o nome de uma cidade"
+          required
+        >
+      </div>
       <button type="submit">Buscar</button>
     </form>
 
-    <section id="resultado" class="resultado" aria-live="polite" hidden>
-      <i id="icone-clima" class="wi wi-na icone-clima" aria-hidden="true"></i>
-      <h2 id="nome-cidade"></h2>
-      <p class="local" id="local-detalhe"></p>
-      <p class="temperatura" id="temperatura"></p>
-      <p class="descricao" id="descricao-clima"></p>
-      <p class="data-hora" id="data-hora"></p>
-    </section>
-
     <p id="mensagem" class="mensagem" aria-live="polite"></p>
+
+    <p id="dica" class="dica">
+      <i class="wi wi-day-cloudy-high" aria-hidden="true"></i>
+      Digite uma cidade para ver o tempo agora e a previsão dos próximos 5 dias.
+    </p>
+
+    <section id="resultado" class="resultado" aria-live="polite" hidden>
+      <div class="agora">
+        <div class="agora-principal">
+          <h2 id="nome-cidade"></h2>
+          <p class="local" id="local-detalhe"></p>
+          <p class="data-hora" id="data-hora"></p>
+
+          <div class="clima-agora">
+            <i id="icone-clima" class="wi wi-na icone-clima" aria-hidden="true"></i>
+            <p class="temperatura"><span id="temperatura"></span><span class="unidade">°C</span></p>
+          </div>
+          <p class="descricao" id="descricao-clima"></p>
+
+          <dl class="hoje">
+            <div>
+              <dt>Máxima de hoje</dt>
+              <dd id="maxima-hoje"></dd>
+            </div>
+            <div>
+              <dt>Mínima de hoje</dt>
+              <dd id="minima-hoje"></dd>
+            </div>
+          </dl>
+        </div>
+
+        <ul class="metricas">
+          <li>
+            <i class="wi wi-humidity" aria-hidden="true"></i>
+            <span class="rotulo">Umidade</span>
+            <strong id="umidade"></strong>
+          </li>
+          <li>
+            <i class="wi wi-strong-wind" aria-hidden="true"></i>
+            <span class="rotulo">Vento</span>
+            <strong id="vento"></strong>
+          </li>
+          <li>
+            <i class="wi wi-raindrop" aria-hidden="true"></i>
+            <span class="rotulo">Precipitação</span>
+            <strong id="precipitacao"></strong>
+          </li>
+        </ul>
+      </div>
+
+      <section class="previsao" aria-labelledby="titulo-previsao">
+        <h3 id="titulo-previsao">Próximos 5 dias</h3>
+        <ol class="dias" id="lista-previsao"></ol>
+      </section>
+    </section>
   </main>
 
   <script src="assets/js/api.js"></script>

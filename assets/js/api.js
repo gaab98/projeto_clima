@@ -2,10 +2,15 @@ const GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
 
 const TIMEOUT_MS = 10000;
+const DIAS_PREVISAO = 5; // quantidade de dias após hoje exibidos na previsão
 const TAMANHO_MINIMO_CIDADE = 2;
 const HORA_AMANHECER = 6;
 const HORA_ANOITECER = 18;
 const DIA = 1; // valor de "is_day" retornado pela API quando é dia
+
+// Variáveis pedidas à Open-Meteo: valores atuais e resumo diário
+const VARIAVEIS_ATUAIS = "temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,weather_code,is_day";
+const VARIAVEIS_DIARIAS = "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum";
 
 // Tipos de erro tratados pelo app (evita strings digitadas à mão)
 const TIPO_ERRO = Object.freeze({
@@ -153,38 +158,90 @@ async function buscarCoordenadas(cidade) {
   return { nome: name || cidade, estado: admin1, pais: country, latitude, longitude };
 }
 
-// API de previsão: latitude/longitude -> temperatura, código do clima e dia/noite
+const ehNumero = (valor) => typeof valor === "number" && Number.isFinite(valor);
+
+// Organiza o resumo diário em uma lista de dias; o índice 0 é hoje
+function montarDias(diaria) {
+  const { time, weather_code, temperature_2m_max, temperature_2m_min, precipitation_sum } = diaria ?? {};
+
+  const dias = Array.isArray(time)
+    ? time.slice(0, DIAS_PREVISAO + 1).map((data, i) => ({
+        data,
+        codigo: weather_code?.[i],
+        maxima: temperature_2m_max?.[i],
+        minima: temperature_2m_min?.[i],
+        precipitacao: precipitation_sum?.[i],
+      }))
+    : [];
+
+  const completo =
+    dias.length === DIAS_PREVISAO + 1 &&
+    dias.every((dia) => ehNumero(dia.maxima) && ehNumero(dia.minima) && ehNumero(dia.precipitacao));
+
+  if (!completo) {
+    throw new ErroApp("A API não retornou a previsão dos próximos dias. Tente novamente.", TIPO_ERRO.API);
+  }
+  return dias;
+}
+
+// API de previsão: latitude/longitude -> clima atual (temperatura, umidade, vento, precipitação),
+// máxima/mínima de hoje e previsão dos próximos dias
 async function buscarClima(latitude, longitude) {
   const url = montarURL(FORECAST_URL, {
     latitude,
     longitude,
-    current: "temperature_2m,weather_code,is_day",
+    current: VARIAVEIS_ATUAIS,
+    daily: VARIAVEIS_DIARIAS,
+    forecast_days: DIAS_PREVISAO + 1, // hoje + próximos dias
+    temperature_unit: "celsius",
+    wind_speed_unit: "kmh",
+    precipitation_unit: "mm",
     timezone: "auto",
   });
   const dados = await buscarJSON(url);
+  const atual = dados?.current;
 
-  if (typeof dados?.current?.temperature_2m !== "number") {
+  const valoresAtuais = [
+    atual?.temperature_2m,
+    atual?.relative_humidity_2m,
+    atual?.precipitation,
+    atual?.wind_speed_10m,
+  ];
+  if (!valoresAtuais.every(ehNumero)) {
     throw new ErroApp("A API não retornou os dados do clima. Tente novamente.", TIPO_ERRO.API);
   }
 
+  const [hoje, ...previsao] = montarDias(dados.daily);
+
   return {
-    temperatura: dados.current.temperature_2m,
-    codigo: dados.current.weather_code,
-    ehDia: dados.current.is_day === DIA,
+    temperatura: atual.temperature_2m,
+    umidade: atual.relative_humidity_2m,
+    vento: atual.wind_speed_10m,
+    precipitacao: atual.precipitation,
+    codigo: atual.weather_code,
+    ehDia: atual.is_day === DIA,
+    maxima: hoje.maxima,
+    minima: hoje.minima,
+    previsao,
   };
 }
 
 /**
  * Fluxo completo: valida o nome, geocodifica (cidade -> latitude/longitude)
- * e consulta o clima atual.
+ * e consulta o clima atual e a previsão dos próximos 5 dias.
  *
  * @async
  * @param {string} entrada - Nome da cidade digitado pelo usuário.
  * @returns {Promise<{
  *   local: {nome: string, estado?: string, pais?: string, latitude: number, longitude: number},
- *   clima: {temperatura: number, codigo: number, ehDia: boolean}
- * }>} Local encontrado e condições atuais: `temperatura` em °C, `codigo` é o
- *   weather_code WMO e `ehDia` indica se é dia no local.
+ *   clima: {
+ *     temperatura: number, umidade: number, vento: number, precipitacao: number,
+ *     codigo: number, ehDia: boolean, maxima: number, minima: number,
+ *     previsao: {data: string, codigo: number, maxima: number, minima: number, precipitacao: number}[]
+ *   }
+ * }>} Local encontrado e clima. `temperatura` (°C), `umidade` (%), `vento` (km/h) e
+ *   `precipitacao` (mm) são valores atuais; `maxima` e `minima` são de hoje; `previsao` traz os
+ *   próximos 5 dias, com `data` no formato AAAA-MM-DD, temperaturas em °C e chuva total em mm.
  * @throws {ErroApp} `TIPO_ERRO.VALIDACAO` se o nome for vazio ou inválido (a API não é chamada).
  * @throws {ErroApp} `TIPO_ERRO.NAO_ENCONTRADA` se a cidade não existir.
  * @throws {ErroApp} `TIPO_ERRO.TIMEOUT`, `REDE`, `LIMITE` ou `API` em falhas nas requisições.
@@ -192,7 +249,7 @@ async function buscarClima(latitude, longitude) {
  * @example
  * try {
  *   const { local, clima } = await buscarPrevisao("São Paulo");
- *   console.log(`${local.nome}: ${clima.temperatura}°C`);
+ *   console.log(`${local.nome}: ${clima.temperatura}°C, mín ${clima.minima}° e máx ${clima.maxima}°`);
  * } catch (erro) {
  *   if (erro instanceof ErroApp) console.warn(erro.tipo, erro.message);
  *   else throw erro;
@@ -222,20 +279,40 @@ function formatarDataHora(data) {
   return `${dia} às ${hora}`;
 }
 
+// Dia da semana e data curtos, ex.: "sex., 13/11" (a API envia a data como "AAAA-MM-DD")
+function formatarDiaSemana(data) {
+  // Meio-dia local evita que o fuso horário recue o dia (new Date("AAAA-MM-DD") usa UTC)
+  return new Date(`${data}T12:00:00`).toLocaleDateString("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
 
 // Interface (só roda no navegador; nos testes com Jest em ambiente "node" é ignorada)
 function iniciarInterface() {
   const form = document.getElementById("form-cidade");
   const inputCidade = document.getElementById("cidade");
   const botao = form.querySelector("button");
+  const elDica = document.getElementById("dica");
   const secaoResultado = document.getElementById("resultado");
   const elIcone = document.getElementById("icone-clima");
   const elNomeCidade = document.getElementById("nome-cidade");
   const elLocal = document.getElementById("local-detalhe");
+  const elDataHora = document.getElementById("data-hora");
   const elTemperatura = document.getElementById("temperatura");
   const elDescricao = document.getElementById("descricao-clima");
-  const elDataHora = document.getElementById("data-hora");
+  const elMinimaHoje = document.getElementById("minima-hoje");
+  const elMaximaHoje = document.getElementById("maxima-hoje");
+  const elUmidade = document.getElementById("umidade");
+  const elVento = document.getElementById("vento");
+  const elPrecipitacao = document.getElementById("precipitacao");
+  const elLista = document.getElementById("lista-previsao");
   const elMensagem = document.getElementById("mensagem");
+
+  const graus = (valor) => `${Math.round(valor)}°`;
+  const milimetros = (valor) => `${valor.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mm`;
 
   // Fundo escuro à noite e claro de dia
   function aplicarTema(ehDia) {
@@ -247,15 +324,64 @@ function iniciarInterface() {
     elMensagem.classList.toggle("erro", ehErro);
   }
 
+  // Cria um elemento com classe e texto opcional
+  function criar(tag, classe, texto = "") {
+    const elemento = document.createElement(tag);
+    elemento.className = classe;
+    elemento.textContent = texto;
+    return elemento;
+  }
+
+  // Temperatura com rótulo, ex.: "Máx 25°"
+  function criarTemperatura(classe, rotulo, valor) {
+    const elemento = criar("span", classe);
+    elemento.append(criar("small", "", rotulo), valor);
+    return elemento;
+  }
+
+  // Linha da previsão: dia, descrição, máxima, mínima e chuva
+  function criarLinhaDia(dia) {
+    const info = obterInfoClima(dia.codigo);
+    const linha = criar("li", "dia");
+
+    const icone = criar("i", `wi ${info.dia}`);
+    icone.setAttribute("aria-hidden", "true");
+    const nome = criar("span", "dia-nome");
+    nome.append(icone, formatarDiaSemana(dia.data));
+
+    const chuvaIcone = criar("i", "wi wi-raindrop");
+    chuvaIcone.setAttribute("aria-hidden", "true");
+    const chuva = criar("span", "dia-chuva");
+    chuva.append(chuvaIcone, `Chuva ${milimetros(dia.precipitacao)}`);
+
+    linha.append(
+      nome,
+      criar("span", "dia-desc", info.descricao),
+      criarTemperatura("dia-max", "Máx", graus(dia.maxima)),
+      criarTemperatura("dia-min", "Mín", graus(dia.minima)),
+      chuva
+    );
+    return linha;
+  }
+
   function exibirResultado(local, clima, consultadoEm) {
     const info = obterInfoClima(clima.codigo);
 
     elIcone.className = `wi ${clima.ehDia ? info.dia : info.noite} icone-clima`;
     elNomeCidade.textContent = local.nome;
     elLocal.textContent = [local.estado, local.pais].filter(Boolean).join(", ");
-    elTemperatura.textContent = `${Math.round(clima.temperatura)}°C`;
-    elDescricao.textContent = info.descricao;
     elDataHora.textContent = formatarDataHora(consultadoEm);
+    elTemperatura.textContent = Math.round(clima.temperatura);
+    elDescricao.textContent = info.descricao;
+
+    elMinimaHoje.textContent = graus(clima.minima);
+    elMaximaHoje.textContent = graus(clima.maxima);
+
+    elUmidade.textContent = `${Math.round(clima.umidade)}%`;
+    elVento.textContent = `${Math.round(clima.vento)} km/h`;
+    elPrecipitacao.textContent = milimetros(clima.precipitacao);
+
+    elLista.replaceChildren(...clima.previsao.map(criarLinhaDia));
 
     aplicarTema(clima.ehDia);
     secaoResultado.hidden = false;
@@ -265,6 +391,7 @@ function iniciarInterface() {
     evento.preventDefault();
 
     botao.disabled = true;
+    elDica.hidden = true;
     secaoResultado.hidden = true;
     mostrarMensagem("Buscando...");
 
@@ -306,5 +433,6 @@ if (typeof module !== "undefined" && module.exports) {
     buscarPrevisao,
     obterInfoClima,
     formatarDataHora,
+    formatarDiaSemana,
   };
 }

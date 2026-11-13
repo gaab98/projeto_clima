@@ -1,163 +1,472 @@
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-/* Variáveis de tema: dia (claro) e noite (escuro) */
+/* Tema: dia (claro) e noite (escuro). O céu de fundo e a folha seguem o horário da cidade. */
 :root,
 body[data-tema="dia"] {
-  --fundo: linear-gradient(135deg, #4facfe 0%, #00c6fb 100%);
-  --card: #ffffff;
-  --texto: #1b2a3a;
-  --texto-suave: #5f7488;
-  --destaque: #1e88e5;
-  --destaque-hover: #1565c0;
-  --borda: #d5e3f0;
-  --input-fundo: #ffffff;
-  --sombra: rgba(0, 0, 0, 0.18);
+  color-scheme: light;
+  --ceu:
+    radial-gradient(circle at 86% 4%, rgba(255, 228, 140, 0.7), transparent 26%),
+    linear-gradient(180deg, #86c5f0 0%, #c4e3f7 50%, #eef6fc 100%);
+  --folha: #fbfdff;
+  --tinta: #10263b;
+  --suave: #587087;
+  --linha: #dde7f0;
+  --campo: #eaf2f9;
+  --destaque: #1b5fb8;
+  --destaque-hover: #154a92;
+  --sobre-destaque: #ffffff;
+  --frio: #3d8bff;
+  --quente: #ffa726;
+  --erro-fundo: #fdecec;
+  --erro-texto: #b3261e;
+  --sombra: 0 28px 60px -28px rgba(16, 38, 59, 0.4);
 }
 
 body[data-tema="noite"] {
-  --fundo: linear-gradient(135deg, #0b1026 0%, #1b2a55 100%);
-  --card: #1c2340;
-  --texto: #e8edf7;
-  --texto-suave: #9fb0cc;
-  --destaque: #7aa7ff;
-  --destaque-hover: #5b8ef0;
-  --borda: #34406a;
-  --input-fundo: #141a33;
-  --sombra: rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+  --ceu:
+    radial-gradient(1.5px 1.5px at 8% 12%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 22% 38%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 37% 9%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1px 1px at 58% 24%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(2px 2px at 73% 11%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 88% 33%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 94% 7%, rgba(255, 255, 255, 0.8), transparent),
+    linear-gradient(180deg, #060a1c 0%, #101a45 60%, #1b2a6b 100%);
+  --folha: #0f1631;
+  --tinta: #e9eefc;
+  --suave: #9aa9cf;
+  --linha: #232c55;
+  --campo: #18214a;
+  --destaque: #7fb0ff;
+  --destaque-hover: #a3c4ff;
+  --sobre-destaque: #08102b;
+  --frio: #6ea8ff;
+  --quente: #ffb454;
+  --erro-fundo: #3a1620;
+  --erro-texto: #ffb4ab;
+  --sombra: 0 28px 60px -28px rgba(0, 0, 0, 0.8);
 }
 
 body {
   min-height: 100vh;
+  padding: clamp(16px, 4vw, 48px) 16px;
+  font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta);
+  background-image: var(--ceu);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.app {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: clamp(22px, 5vw, 44px);
+  background: var(--folha);
+  border-radius: 28px;
+  box-shadow: var(--sombra);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Cabeçalho e busca */
+.topo {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 16px;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: var(--fundo);
-  color: var(--texto);
-  transition: background 0.4s, color 0.4s;
-}
-
-.card {
-  width: 100%;
-  max-width: 420px;
-  padding: 32px 28px;
-  background: var(--card);
-  border-radius: 20px;
-  box-shadow: 0 16px 40px var(--sombra);
-  text-align: center;
-  transition: background 0.4s;
-}
-
-h1 {
-  font-size: 1.6rem;
+  gap: 10px;
   margin-bottom: 20px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
-form {
+.topo .wi {
+  font-size: 1.6rem;
+  color: var(--quente);
+}
+
+.busca {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 
-input {
+.campo {
+  position: relative;
   flex: 1;
   min-width: 0;
-  padding: 12px 14px;
-  font-size: 1rem;
-  color: var(--texto);
-  background: var(--input-fundo);
-  border: 2px solid var(--borda);
-  border-radius: 10px;
+}
+
+.campo svg {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  translate: 0 -50%;
+  color: var(--suave);
+  pointer-events: none;
+}
+
+.campo input {
+  width: 100%;
+  padding: 14px 16px 14px 46px;
+  font: inherit;
+  font-size: 1.05rem;
+  color: var(--tinta);
+  background: var(--campo);
+  border: 2px solid transparent;
+  border-radius: 14px;
   outline: none;
+}
+
+.campo input::placeholder {
+  color: var(--suave);
+}
+
+.campo input:focus-visible {
+  border-color: var(--destaque);
   transition: border-color 0.2s;
 }
 
-input:focus {
-  border-color: var(--destaque);
+.busca button {
+  padding: 0 26px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--sobre-destaque);
+  background: var(--destaque);
+  border: 0;
+  border-radius: 14px;
+  cursor: pointer;
 }
 
-button {
-  padding: 12px 18px;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #ffffff;
-  background: var(--destaque);
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
+/* A transição fica só no hover para não animar a troca de tema dia/noite */
+.busca button:hover:not(:disabled) {
+  background: var(--destaque-hover);
   transition: background 0.2s;
 }
 
-body[data-tema="noite"] button {
-  color: #0b1026;
+.busca button:focus-visible {
+  outline: 3px solid var(--destaque);
+  outline-offset: 3px;
 }
 
-button:hover:not(:disabled) {
-  background: var(--destaque-hover);
-}
-
-button:disabled {
+.busca button:disabled {
   opacity: 0.6;
   cursor: wait;
 }
 
+.mensagem {
+  color: var(--suave);
+}
+
+.mensagem:not(:empty) {
+  margin-top: 16px;
+}
+
+.mensagem.erro {
+  padding: 12px 14px;
+  font-weight: 500;
+  color: var(--erro-texto);
+  background: var(--erro-fundo);
+  border-radius: 12px;
+}
+
+.dica {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 46ch;
+  margin-top: 32px;
+  color: var(--suave);
+}
+
+.dica .wi {
+  font-size: 2.8rem;
+  color: var(--destaque);
+}
+
+/* Agora: cidade, temperatura e métricas */
 .resultado {
+  margin-top: 32px;
+}
+
+.agora {
+  display: grid;
+  gap: 28px 40px;
+}
+
+.agora-principal h2 {
+  font-size: clamp(2rem, 6vw, 3rem);
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.local {
+  margin-top: 6px;
+  font-size: 1.05rem;
+}
+
+.data-hora {
+  margin-top: 2px;
+  font-size: 0.95rem;
+  color: var(--suave);
+}
+
+.data-hora::first-letter {
+  text-transform: uppercase;
+}
+
+.clima-agora {
+  display: flex;
+  align-items: center;
+  gap: 18px;
   margin-top: 28px;
 }
 
 .icone-clima {
-  font-size: 4.5rem;
-  line-height: 1;
+  font-size: 5rem;
   color: var(--destaque);
-}
-
-.resultado h2 {
-  margin-top: 12px;
-  font-size: 1.4rem;
-}
-
-.local {
-  margin-top: 4px;
-  color: var(--texto-suave);
-  font-size: 0.95rem;
 }
 
 .temperatura {
-  margin-top: 12px;
-  font-size: 4rem;
+  font-size: clamp(4.5rem, 15vw, 7rem);
   font-weight: 700;
-  color: var(--destaque);
+  letter-spacing: -0.045em;
+  line-height: 0.9;
+}
+
+.unidade {
+  margin-left: 4px;
+  font-size: 0.36em;
+  font-weight: 600;
+  letter-spacing: 0;
+  vertical-align: top;
+  color: var(--suave);
 }
 
 .descricao {
-  margin-top: 4px;
-  font-size: 1.2rem;
-  font-weight: 500;
+  margin-top: 8px;
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
-.data-hora {
-  margin-top: 16px;
-  color: var(--texto-suave);
+.hoje {
+  display: flex;
+  gap: 36px;
+  margin-top: 24px;
+}
+
+.hoje dt {
   font-size: 0.9rem;
+  color: var(--suave);
+}
+
+.hoje dd {
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.metricas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 22px;
+  list-style: none;
+  border-top: 1px solid var(--linha);
+}
+
+.metricas li {
+  display: grid;
+  grid-template-areas: "icone" "valor" "rotulo";
+  justify-items: start;
+  row-gap: 2px;
+}
+
+.metricas .wi {
+  grid-area: icone;
+  font-size: 1.7rem;
+  color: var(--frio);
+}
+
+.metricas strong {
+  grid-area: valor;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.metricas .rotulo {
+  grid-area: rotulo;
+  font-size: 0.82rem;
+  color: var(--suave);
+}
+
+/* Próximos 5 dias */
+.previsao {
+  margin-top: 36px;
+  padding-top: 24px;
+  border-top: 1px solid var(--linha);
+}
+
+.previsao h3 {
+  margin-bottom: 6px;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.dias {
+  list-style: none;
+}
+
+.dia {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "nome max min"
+    "desc chuva chuva";
+  align-items: center;
+  gap: 6px 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--linha);
+}
+
+.dia:last-child {
+  border-bottom: 0;
+}
+
+.dia-nome {
+  grid-area: nome;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
   text-transform: capitalize;
 }
 
-.mensagem {
-  margin-top: 20px;
-  min-height: 1.2em;
-  color: var(--texto-suave);
+.dia-nome .wi {
+  width: 1.9rem;
+  font-size: 1.6rem;
+  text-align: center;
+  color: var(--destaque);
 }
 
-.mensagem.erro {
-  color: #e53935;
+.dia-desc {
+  grid-area: desc;
+  font-size: 0.9rem;
+  color: var(--suave);
 }
 
-body[data-tema="noite"] .mensagem.erro {
-  color: #ff8a80;
+.dia-max,
+.dia-min {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 5px;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.dia-max {
+  grid-area: max;
+}
+
+.dia-min {
+  grid-area: min;
+}
+
+.dia-max small,
+.dia-min small {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--suave);
+}
+
+.dia-chuva {
+  grid-area: chuva;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--suave);
+}
+
+.dia-chuva .wi {
+  color: var(--frio);
+}
+
+@media (min-width: 720px) {
+  .agora {
+    grid-template-columns: minmax(0, 1fr) 14rem;
+    align-items: start;
+  }
+
+  .metricas {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 0 0 0 32px;
+    border-top: 0;
+    border-left: 1px solid var(--linha);
+  }
+
+  .metricas li {
+    grid-template-columns: 2.6rem 1fr;
+    grid-template-areas:
+      "icone rotulo"
+      "icone valor";
+    column-gap: 12px;
+    align-items: center;
+    padding: 14px 0;
+  }
+
+  .metricas .wi {
+    justify-self: center;
+  }
+}
+
+@media (min-width: 760px) {
+  .dia {
+    grid-template-columns: 9.5rem minmax(0, 1fr) 5.2rem 5.2rem 7.5rem;
+    grid-template-areas: "nome desc max min chuva";
+    gap: 10px 14px;
+  }
+
+  .dia-nome {
+    gap: 12px;
+  }
+
+  .dia-max small,
+  .dia-min small {
+    font-size: 0.8rem;
+  }
+
+  .dia-chuva {
+    justify-content: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }
 
 [hidden] {
