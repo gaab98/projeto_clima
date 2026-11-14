@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Previsão do Tempo</title>
+  <title>ClimaStats</title>
 
   <!-- Fonte Bricolage Grotesque -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,7 +16,7 @@
 </head>
 <body data-tema="dia">
   <main class="app">
-    <h1 class="topo"><i class="wi wi-day-cloudy" aria-hidden="true"></i>Previsão do Tempo</h1>
+    <h1 class="topo"><i class="wi wi-day-cloudy" aria-hidden="true"></i>ClimaStats</h1>
 
     <form id="form-cidade" class="busca" autocomplete="off" role="search">
       <label class="sr-only" for="cidade">Cidade</label>
@@ -92,6 +92,13 @@
         <ol class="dias" id="lista-previsao"></ol>
       </section>
     </section>
+
+    <footer class="rodape">
+      <p>
+        ClimaStats &copy; 2026. Dados meteorológicos via
+        <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>.
+      </p>
+    </footer>
   </main>
 
   <script src="assets/js/api.js"></script>

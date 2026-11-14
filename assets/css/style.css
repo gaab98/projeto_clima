@@ -463,6 +463,30 @@ body {
   }
 }
 
+/* Rodapé com a atribuição exigida pela licença do Open-Meteo */
+.rodape {
+  margin-top: 36px;
+  padding-top: 20px;
+  font-size: 0.85rem;
+  color: var(--suave);
+  border-top: 1px solid var(--linha);
+}
+
+.rodape a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.rodape a:hover {
+  color: var(--tinta);
+}
+
+.rodape a:focus-visible {
+  outline: 2px solid var(--destaque);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

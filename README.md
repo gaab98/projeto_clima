@@ -1,6 +1,6 @@
-# Previsão do Tempo
+# ClimaStats - Aplicação de Previsão do Tempo
 
-Aplicativo web de previsão do tempo feito com **HTML, CSS e JavaScript puro**. Você digita o nome de uma cidade e o app mostra a temperatura atual, a descrição do clima e um ícone correspondente, usando a API gratuita do [Open-Meteo](https://open-meteo.com/).
+Aplicação web de previsão do tempo feito com **HTML, CSS e JavaScript**. Você digita o nome de uma cidade e o app mostra a temperatura atual, a descrição do clima e um ícone correspondente, usando a API gratuita do [Open-Meteo](https://open-meteo.com/).
 
 ## Funcionalidades
 
@@ -14,12 +14,21 @@ Aplicativo web de previsão do tempo feito com **HTML, CSS e JavaScript puro**. 
 - Fundo **claro de dia** e **escuro à noite**, de acordo com o horário da cidade consultada
 - Tratamento de erros: nome inválido, cidade não encontrada, falha da API, limite de requisições, timeout e erro de rede
 
+## Tecnologias Utilizadas
+
+- HTML5, CSS3 e JavaScript.
+- [Open-Meteo](https://open-meteo.com/) (APIs de Geocodificação e Previsão)
+- [Weather Icons](https://erikflowers.github.io/weather-icons/) (via CDN)
+- Fonte [Bricolage Grotesque](https://fonts.google.com/specimen/Bricolage+Grotesque) (Google Fonts)
+- [Jest](https://jestjs.io/) para testes
+
 ## Estrutura do projeto
 
 ```
 projeto_clima/
 ├── index.html
 ├── README.md
+├── NOTICE.md
 ├── assets/
 │   ├── css/
 │   │   └── style.css
@@ -49,13 +58,13 @@ Se tudo estiver certo, o Jest mostra os 11 testes passando (`Tests: 11 passed, 1
 
 ## Como executar
 
-**Opção 1: VS Code com Live Server**
+**Opção 1: direto no navegador**
+Dê um duplo clique no `index.html`.
+
+**Opção 2: VS Code com Live Server**
 1. Abra a pasta do projeto no VS Code.
 2. Instale a extensão **Live Server** (Ritwick Dey).
 3. Clique com o botão direito no `index.html` e escolha **Open with Live Server**.
-
-**Opção 2: direto no navegador**
-Dê um duplo clique no `index.html`.
 
 **Opção 3: servidor local pelo terminal**
 ```bash
@@ -122,14 +131,6 @@ Cenários cobertos em `tests/api.test.js`:
 | 10 | Dia da semana correto na data da previsão (sem erro de fuso horário) |
 | 11 | Umidade, vento e precipitação |
 
-## Tecnologias
-
-- HTML5, CSS3 e JavaScript (ES2022+), sem frameworks
-- [Open-Meteo](https://open-meteo.com/) (APIs de Geocodificação e Previsão)
-- [Weather Icons](https://erikflowers.github.io/weather-icons/) (via CDN)
-- Fonte [Bricolage Grotesque](https://fonts.google.com/specimen/Bricolage+Grotesque) (Google Fonts)
-- [Jest](https://jestjs.io/) para testes
-
 ## Créditos
 
-Dados meteorológicos fornecidos por [Open-Meteo](https://open-meteo.com/).
+Dados meteorológicos fornecidos por [Open-Meteo](https://open-meteo.com/). Outras atribuições em [NOTICE.md](NOTICE.md).
